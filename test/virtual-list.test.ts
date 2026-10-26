@@ -1,67 +1,91 @@
-import { describe, expect, test } from 'bun:test';
-import { calculateVirtualWindow } from '../src/utils/virtual-window';
+import { afterAll, beforeAll, describe, expect, test } from 'bun:test';
+import type { Server } from 'bun';
+import { createDevServer } from '../vite';
 
-describe('calculateVirtualWindow', () => {
-  test('handles empty count', () => {
-    const res = calculateVirtualWindow({
-      totalCount: 0,
-      getItemHeight: () => 50,
-      scrollTop: 100,
-      clientHeight: 500,
-    });
+describe('MessageList loaded messages retention', () => {
+  let server: Server<unknown>;
+  let webview: Bun.WebView;
 
-    expect(res.startIndex).toBe(0);
-    expect(res.endIndex).toBe(-1);
-    expect(res.topSpacerHeight).toBe(0);
-    expect(res.bottomSpacerHeight).toBe(0);
-    expect(res.totalHeight).toBe(0);
+  beforeAll(async () => {
+    server = createDevServer(0, false);
+    webview = new Bun.WebView();
+    await webview.navigate(`http://localhost:${server.port}`);
   });
 
-  test('calculates correct start and end indices with uniform heights', () => {
-    const itemHeight = 60;
-    const totalCount = 100;
-
-    const res = calculateVirtualWindow({
-      totalCount,
-      getItemHeight: () => itemHeight,
-      scrollTop: 1200,
-      clientHeight: 600,
-      overscanPx: 200,
-    });
-
-    // viewTop = 1000, viewBottom = 2000
-    // item 16 ends at 17 * 60 = 1020 >= 1000 -> startIndex = 16
-    expect(res.startIndex).toBe(16);
-    expect(res.topSpacerHeight).toBe(16 * 60);
-
-    // item 33 starts at 33 * 60 = 1980 < 2000, so endIndex extends to 34 to cover the viewport edge
-    expect(res.endIndex).toBe(34);
-    expect(res.bottomSpacerHeight).toBe((totalCount - (34 + 1)) * 60);
-
-    const renderedCount = res.endIndex - res.startIndex + 1;
-    expect(res.topSpacerHeight + renderedCount * itemHeight + res.bottomSpacerHeight).toBe(
-      totalCount * itemHeight
-    );
+  afterAll(async () => {
+    await webview.close();
+    server.stop(true);
   });
 
-  test('calculates correct window with variable heights', () => {
-    const heights = [30, 100, 45, 200, 60, 80, 50, 120, 90, 70];
-    const totalCount = heights.length;
-    const totalHeight = heights.reduce((a, b) => a + b, 0);
+  test('renders and retains all loaded messages in DOM without virtual unmounting during scroll', async () => {
+    const result = (await webview.evaluate(`(async () => {
+      if (window.__hmr_state__) {
+        window.__hmr_state__.channels = [
+          { id: 'ch-scroll-test', name: 'scroll-test', display_name: 'Scroll Test', type: 'O' }
+        ];
+        window.__hmr_state__.activeChannelId = 'ch-scroll-test';
+        window.__hmr_state__.posts = Array.from({ length: 75 }, (_, i) => ({
+          id: 'post-scroll-' + i,
+          user_id: 'user-1',
+          channel_id: 'ch-scroll-test',
+          message: 'Persistent loaded message ' + i,
+          create_at: Date.now() + i * 1000,
+        }));
+      }
 
-    const res = calculateVirtualWindow({
-      totalCount,
-      getItemHeight: (i) => heights[i],
-      scrollTop: 200,
-      clientHeight: 300,
-      overscanPx: 50,
-    });
+      if (window.__render_app__) {
+        window.__render_app__();
+      }
 
-    const renderedHeight = heights
-      .slice(res.startIndex, res.endIndex + 1)
-      .reduce((a, b) => a + b, 0);
+      await new Promise(r => setTimeout(r, 60));
 
-    expect(res.topSpacerHeight + renderedHeight + res.bottomSpacerHeight).toBe(totalHeight);
-    expect(res.totalHeight).toBe(totalHeight);
+      const articlesInitial = document.querySelectorAll('article[data-post-id]');
+      const initialCount = articlesInitial.length;
+      const firstIdBeforeScroll = articlesInitial[0]?.getAttribute('data-post-id');
+      const lastIdBeforeScroll = articlesInitial[articlesInitial.length - 1]?.getAttribute('data-post-id');
+
+      // Find scroll container and scroll down
+      const scrollContainer = document.querySelector('article[data-post-id]')?.closest('.overflow-y-auto');
+      if (scrollContainer) {
+        scrollContainer.scrollTop = 1500;
+        scrollContainer.dispatchEvent(new Event('scroll'));
+      }
+      await new Promise(r => setTimeout(r, 60));
+
+      const articlesAfterScroll = document.querySelectorAll('article[data-post-id]');
+      const afterScrollCount = articlesAfterScroll.length;
+
+      // Scroll back to top
+      if (scrollContainer) {
+        scrollContainer.scrollTop = 0;
+        scrollContainer.dispatchEvent(new Event('scroll'));
+      }
+      await new Promise(r => setTimeout(r, 60));
+
+      const articlesTop = document.querySelectorAll('article[data-post-id]');
+
+      return {
+        initialCount,
+        firstIdBeforeScroll,
+        lastIdBeforeScroll,
+        afterScrollCount,
+        topCount: articlesTop.length,
+        hasZeroSpacers: !document.querySelector('div[style*="height"]'),
+      };
+    })()`)) as {
+      initialCount: number;
+      firstIdBeforeScroll: string;
+      lastIdBeforeScroll: string;
+      afterScrollCount: number;
+      topCount: number;
+      hasZeroSpacers: boolean;
+    };
+
+    expect(result.initialCount).toBe(75);
+    expect(result.firstIdBeforeScroll).toBe('post-scroll-0');
+    expect(result.lastIdBeforeScroll).toBe('post-scroll-74');
+    expect(result.afterScrollCount).toBe(75);
+    expect(result.topCount).toBe(75);
+    expect(result.hasZeroSpacers).toBe(true);
   });
 });

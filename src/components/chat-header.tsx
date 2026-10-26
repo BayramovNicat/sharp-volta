@@ -1,4 +1,5 @@
 import type { Channel } from '../types';
+import { formatChannelName } from '../utils/channel-name';
 import {
   BellIcon,
   BellOffIcon,
@@ -29,6 +30,7 @@ export const ChatHeader = ({
 }: ChatHeaderProps) => {
   const isDm = channel?.type === 'D' || channel?.type === 'G';
   const user = channel?.otherUser;
+  const details = formatChannelName(channel);
 
   return (
     <header class="h-14 px-4 sm:px-6 border-b border-zinc-800/80 flex items-center justify-between bg-zinc-900/40 shrink-0 gap-3">
@@ -51,11 +53,11 @@ export const ChatHeader = ({
         {channel ? (
           <div class="flex items-center gap-3 min-w-0">
             <div class="size-7 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-400 shrink-0">
-              {isDm ? (
+              {details.iconType === 'dm' ? (
                 <span class="text-xs font-bold text-zinc-300">
-                  {(user?.username || channel.display_name).charAt(0).toUpperCase()}
+                  {details.initial}
                 </span>
-              ) : channel.type === 'P' ? (
+              ) : details.iconType === 'lock' ? (
                 <LockIcon class="size-4 text-zinc-300" />
               ) : (
                 <HashIcon class="size-4 text-zinc-300" />
@@ -63,13 +65,13 @@ export const ChatHeader = ({
             </div>
             <div class="min-w-0">
               <h2 class="text-sm font-bold text-zinc-100 flex items-center gap-2 truncate">
-                {isDm ? `@${user?.username || channel.display_name}` : channel.display_name}
-                {isDm && user?.display_name && (
+                {details.displayName}
+                {isDm && user?.display_name && user.display_name !== user.username && (
                   <span class="text-xs font-normal text-zinc-400">({user.display_name})</span>
                 )}
               </h2>
               <p class="text-[11px] text-zinc-400 truncate">
-                {isDm ? user?.email || 'Direct Message' : channel.header || channel.purpose || 'Public Channel'}
+                {details.secondaryText}
               </p>
             </div>
           </div>

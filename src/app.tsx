@@ -13,6 +13,7 @@ import {
 } from './services/notifications';
 import { playMentionChime, playMessageChime } from './services/sound';
 import type { AppState, Channel, FileAttachment, Post, User } from './types';
+import { formatChannelName } from './utils/channel-name';
 import { extractChatData } from './utils/chat-extractor';
 
 const root = document.querySelector('#app') as HTMLElement;
@@ -35,9 +36,6 @@ const initialSidebarOpen =
   typeof localStorage !== 'undefined' ? localStorage.getItem('mm_sidebar_open') !== 'false' : true;
 
 const APP_TITLE = import.meta.env?.VITE_APP_TITLE || 'Sharp Volta (Mattermost)';
-if (typeof document !== 'undefined') {
-  document.title = APP_TITLE;
-}
 
 const state: AppState = {
   currentUser: null,
@@ -57,6 +55,22 @@ const state: AppState = {
   notificationsEnabled: initialNotificationsEnabled,
   isSidebarOpen: initialSidebarOpen,
 };
+
+const updateDocumentTitle = () => {
+  if (typeof document === 'undefined') return;
+  const activeChannel = state.channels.find((c) => c.id === state.activeChannelId);
+  const mentionCount = state.mentionChannelIds.size;
+  const badge = mentionCount > 0 ? `(${mentionCount}) ` : '';
+
+  if (activeChannel) {
+    const details = formatChannelName(activeChannel, usersMap, state.currentUser?.id);
+    document.title = details.title ? `${badge}${details.title} · ${APP_TITLE}` : `${badge}${APP_TITLE}`;
+  } else {
+    document.title = `${badge}${APP_TITLE}`;
+  }
+};
+
+updateDocumentTitle();
 
 const patchTypingIndicator = (text: string) => {
   state.typingText = text;
@@ -260,6 +274,7 @@ const handleExtractChat = () => {
 };
 
 const render = () => {
+  updateDocumentTitle();
   const activeChannel = state.channels.find((c) => c.id === state.activeChannelId);
 
   root.replaceChildren(
@@ -273,6 +288,7 @@ const render = () => {
         isConnected={state.isConnected}
         searchTerm={state.searchTerm}
         isSidebarOpen={state.isSidebarOpen}
+        usersMap={usersMap}
         onToggleSidebar={toggleSidebar}
         onSearchChange={(term) => {
           patchSidebarSearch(term);
@@ -323,6 +339,10 @@ const render = () => {
   );
 };
 
+if (typeof window !== 'undefined') {
+  (window as unknown as { __render_app__?: () => void }).__render_app__ = render;
+}
+
 const handleScroll = (e: Event) => {
   const target = (e.currentTarget || e.target) as HTMLElement | null;
   if (!target || scrollRafPending) return;
@@ -371,12 +391,7 @@ const selectChannel = async (channelId: string) => {
   state.unreadChannelIds.delete(channelId);
   state.mentionChannelIds.delete(channelId);
   patchChannelBadge(channelId);
-
-  const activeChannel = state.channels.find((c) => c.id === channelId);
-  if (typeof document !== 'undefined') {
-    const channelName = activeChannel?.display_name || activeChannel?.name;
-    document.title = channelName ? `${channelName} · ${APP_TITLE}` : APP_TITLE;
-  }
+  updateDocumentTitle();
 
   state.posts = [];
   state.oldestPostId = null;
@@ -707,6 +722,7 @@ const connectWebSocket = () => {
             state.mentionChannelIds.add(post.channel_id);
           }
           patchChannelBadge(post.channel_id);
+          updateDocumentTitle();
         }
 
         if (!isFromMe) {
@@ -717,7 +733,9 @@ const connectWebSocket = () => {
             author?.username ||
             (data.data?.sender_name ? String(data.data.sender_name).replace(/^@/, '') : 'Someone');
           const targetChannel = state.channels.find((c) => c.id === post.channel_id);
-          const channelName = targetChannel?.display_name || 'chat';
+          const channelTitle = targetChannel
+            ? formatChannelName(targetChannel, usersMap, state.currentUser?.id).title
+            : 'chat';
 
           if (state.soundEnabled) {
             if (isMention) {
@@ -730,8 +748,8 @@ const connectWebSocket = () => {
           if (state.notificationsEnabled && (!isCurrentChannel || isWindowHidden)) {
             showDesktopNotification({
               title: isMention
-                ? `@${authorName} mentioned you in #${channelName}`
-                : `#${channelName} - @${authorName}`,
+                ? `@${authorName} mentioned you in ${channelTitle}`
+                : `${channelTitle} - @${authorName}`,
               body: (messageText || 'Sent an attachment').slice(0, 120),
               tag: `channel-${post.channel_id}`,
               onClick: () => {

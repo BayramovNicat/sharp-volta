@@ -1,4 +1,5 @@
 import type { Channel, Post, User } from '../types';
+import { formatChannelName } from './channel-name';
 
 export interface ExtractedMedia {
   id: string;
@@ -166,10 +167,11 @@ export const extractChatData = (
     };
   });
 
+  const nameDetails = formatChannelName(channel, usersMap, currentUserId);
   const channelInfo = {
     id: channel?.id || 'unknown-channel',
     name: channel?.name || 'unknown',
-    displayName: channel?.display_name || channel?.name || 'Channel',
+    displayName: nameDetails.displayName || 'Channel',
     type: CHANNEL_TYPE_LABELS[channel?.type || 'O'] || 'Channel',
     header: channel?.header || undefined,
     purpose: channel?.purpose || undefined,

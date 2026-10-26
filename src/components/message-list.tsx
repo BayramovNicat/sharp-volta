@@ -1,5 +1,4 @@
 import type { Post, User } from '../types';
-import { calculateVirtualWindow } from '../utils/virtual-window';
 import { MessageSquareIcon, SpinnerIcon } from './icons';
 import { MessageItem } from './message-item';
 
@@ -26,9 +25,6 @@ interface MessageListProps {
   onRetry?: (post: Post) => void;
 }
 
-const DEFAULT_ITEM_HEIGHT = 64;
-const VIRTUAL_THRESHOLD = 40;
-
 export const MessageList = ({
   posts: initialPosts,
   usersMap,
@@ -52,85 +48,19 @@ export const MessageList = ({
   }
 
   const posts = [...initialPosts];
-  const heightCache = new Map<string, number>();
-  let currentStartIndex = 0;
-  let currentEndIndex = posts.length - 1;
   let containerEl: HTMLElement | null = null;
   let itemsContainerEl: HTMLElement | null = null;
-  let topSpacerEl: HTMLElement | null = null;
-  let bottomSpacerEl: HTMLElement | null = null;
   let loadingSpinnerEl: HTMLElement | null = null;
 
-  const getItemHeight = (index: number): number => {
-    const post = posts[index];
-    if (!post) return DEFAULT_ITEM_HEIGHT;
-    return heightCache.get(post.id) ?? DEFAULT_ITEM_HEIGHT;
-  };
-
-  const measureRenderedItems = () => {
-    if (!itemsContainerEl) return;
-    const articles = itemsContainerEl.querySelectorAll<HTMLElement>('article[data-post-id]');
-    for (let i = 0; i < articles.length; i++) {
-      const el = articles[i];
-      const id = el.getAttribute('data-post-id');
-      if (id && el.offsetHeight > 0) {
-        heightCache.set(id, el.offsetHeight);
-      }
-    }
-  };
-
-  const renderPostSlice = (start: number, end: number) => {
-    const slice = posts.slice(start, end + 1);
-    const fragment = document.createDocumentFragment();
-    for (const post of slice) {
-      fragment.appendChild(
-        <MessageItem
-          key={post.id}
-          post={post}
-          author={usersMap.get(post.user_id)}
-          isMe={post.user_id === currentUserId}
-          onRetry={onRetry}
-        />
-      );
-    }
-    return fragment;
-  };
-
-  const updateWindow = () => {
-    if (!containerEl || !itemsContainerEl || posts.length <= VIRTUAL_THRESHOLD) {
-      return;
-    }
-
-    measureRenderedItems();
-
-    const win = calculateVirtualWindow({
-      totalCount: posts.length,
-      getItemHeight,
-      scrollTop: containerEl.scrollTop,
-      clientHeight: containerEl.clientHeight || 700,
-      overscanPx: 450,
-    });
-
-    if (topSpacerEl) {
-      topSpacerEl.style.height = `${win.topSpacerHeight}px`;
-    }
-    if (bottomSpacerEl) {
-      bottomSpacerEl.style.height = `${win.bottomSpacerHeight}px`;
-    }
-
-    if (win.startIndex !== currentStartIndex || win.endIndex !== currentEndIndex) {
-      currentStartIndex = win.startIndex;
-      currentEndIndex = win.endIndex;
-      itemsContainerEl.replaceChildren(renderPostSlice(currentStartIndex, currentEndIndex));
-    }
-  };
-
-  const handleContainerScroll = (e: Event) => {
-    if (posts.length > VIRTUAL_THRESHOLD) {
-      updateWindow();
-    }
-    onScroll?.(e);
-  };
+  const createItem = (post: Post) => (
+    <MessageItem
+      key={post.id}
+      post={post}
+      author={usersMap.get(post.user_id)}
+      isMe={post.user_id === currentUserId}
+      onRetry={onRetry}
+    />
+  );
 
   const scrollToBottom = () => {
     requestAnimationFrame(() => {
@@ -148,19 +78,8 @@ export const MessageList = ({
         containerEl.scrollTop + containerEl.clientHeight >= containerEl.scrollHeight - 100;
 
       posts.push(post);
-
-      if (posts.length <= VIRTUAL_THRESHOLD && itemsContainerEl) {
-        itemsContainerEl.appendChild(
-          <MessageItem
-            key={post.id}
-            post={post}
-            author={usersMap.get(post.user_id)}
-            isMe={post.user_id === currentUserId}
-            onRetry={onRetry}
-          />
-        );
-      } else {
-        updateWindow();
+      if (itemsContainerEl) {
+        itemsContainerEl.appendChild(createItem(post));
       }
 
       if (isNearBottom) {
@@ -175,18 +94,7 @@ export const MessageList = ({
         if (itemsContainerEl) {
           const existingEl = itemsContainerEl.querySelector(`article[data-post-id="${updatedPost.id}"]`);
           if (existingEl) {
-            const newEl = (
-              <MessageItem
-                key={updatedPost.id}
-                post={updatedPost}
-                author={usersMap.get(updatedPost.user_id)}
-                isMe={updatedPost.user_id === currentUserId}
-                onRetry={onRetry}
-              />
-            );
-            existingEl.replaceWith(newEl);
-          } else if (posts.length > VIRTUAL_THRESHOLD) {
-            updateWindow();
+            existingEl.replaceWith(createItem(updatedPost));
           }
         }
       } else {
@@ -205,18 +113,7 @@ export const MessageList = ({
       if (itemsContainerEl) {
         const existingEl = itemsContainerEl.querySelector(`article[data-post-id="${tempId}"]`);
         if (existingEl) {
-          const newEl = (
-            <MessageItem
-              key={serverPost.id}
-              post={serverPost}
-              author={usersMap.get(serverPost.user_id)}
-              isMe={serverPost.user_id === currentUserId}
-              onRetry={onRetry}
-            />
-          );
-          existingEl.replaceWith(newEl);
-        } else if (posts.length > VIRTUAL_THRESHOLD) {
-          updateWindow();
+          existingEl.replaceWith(createItem(serverPost));
         }
       }
     },
@@ -229,18 +126,7 @@ export const MessageList = ({
         if (itemsContainerEl) {
           const existingEl = itemsContainerEl.querySelector(`article[data-post-id="${tempId}"]`);
           if (existingEl) {
-            const newEl = (
-              <MessageItem
-                key={failedPost.id}
-                post={failedPost}
-                author={usersMap.get(failedPost.user_id)}
-                isMe={failedPost.user_id === currentUserId}
-                onRetry={onRetry}
-              />
-            );
-            existingEl.replaceWith(newEl);
-          } else if (posts.length > VIRTUAL_THRESHOLD) {
-            updateWindow();
+            existingEl.replaceWith(createItem(failedPost));
           }
         }
       }
@@ -248,22 +134,12 @@ export const MessageList = ({
 
     prependPosts: (olderPosts: Post[], prevScrollHeight: number, prevScrollTop: number) => {
       posts.unshift(...olderPosts);
-      if (posts.length <= VIRTUAL_THRESHOLD && itemsContainerEl) {
+      if (itemsContainerEl) {
         const fragment = document.createDocumentFragment();
         for (const post of olderPosts) {
-          fragment.appendChild(
-            <MessageItem
-              key={post.id}
-              post={post}
-              author={usersMap.get(post.user_id)}
-              isMe={post.user_id === currentUserId}
-              onRetry={onRetry}
-            />
-          );
+          fragment.appendChild(createItem(post));
         }
         itemsContainerEl.prepend(fragment);
-      } else {
-        updateWindow();
       }
 
       requestAnimationFrame(() => {
@@ -286,29 +162,13 @@ export const MessageList = ({
 
   handleRef?.(handle);
 
-  const initialWin =
-    posts.length > VIRTUAL_THRESHOLD
-      ? calculateVirtualWindow({
-          totalCount: posts.length,
-          getItemHeight,
-          scrollTop: 0,
-          clientHeight: 700,
-          overscanPx: 450,
-        })
-      : null;
-
-  if (initialWin) {
-    currentStartIndex = initialWin.startIndex;
-    currentEndIndex = initialWin.endIndex;
-  }
-
   return (
     <div
       ref={(el) => {
         containerEl = el;
         scrollRef?.(el);
       }}
-      onScroll={handleContainerScroll}
+      onScroll={onScroll}
       class="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-4"
     >
       <div
@@ -331,47 +191,14 @@ export const MessageList = ({
         </div>
       )}
 
-      {posts.length > VIRTUAL_THRESHOLD ? (
-        <div>
-          <div
-            ref={(el) => {
-              topSpacerEl = el;
-            }}
-            style={`height: ${initialWin?.topSpacerHeight ?? 0}px;`}
-          />
-          <div
-            ref={(el) => {
-              itemsContainerEl = el;
-            }}
-            class="space-y-4"
-          >
-            {renderPostSlice(currentStartIndex, currentEndIndex)}
-          </div>
-          <div
-            ref={(el) => {
-              bottomSpacerEl = el;
-            }}
-            style={`height: ${initialWin?.bottomSpacerHeight ?? 0}px;`}
-          />
-        </div>
-      ) : (
-        <div
-          ref={(el) => {
-            itemsContainerEl = el;
-          }}
-          class="space-y-4"
-        >
-          {posts.map((post) => (
-            <MessageItem
-              key={post.id}
-              post={post}
-              author={usersMap.get(post.user_id)}
-              isMe={post.user_id === currentUserId}
-              onRetry={onRetry}
-            />
-          ))}
-        </div>
-      )}
+      <div
+        ref={(el) => {
+          itemsContainerEl = el;
+        }}
+        class="space-y-4"
+      >
+        {posts.map((post) => createItem(post))}
+      </div>
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import type { Channel, User } from '../types';
+import { formatChannelName } from '../utils/channel-name';
 import { HashIcon, LockIcon, PanelLeftIcon, SearchIcon } from './icons';
 
 interface SidebarProps {
@@ -10,6 +11,7 @@ interface SidebarProps {
   isConnected: boolean;
   searchTerm: string;
   isSidebarOpen?: boolean;
+  usersMap?: Map<string, User>;
   onToggleSidebar?: () => void;
   onSearchChange: (term: string) => void;
   onSelectChannel: (id: string) => void;
@@ -31,6 +33,7 @@ export const Sidebar = ({
   isConnected,
   searchTerm,
   isSidebarOpen = true,
+  usersMap,
   onToggleSidebar,
   onSearchChange,
   onSelectChannel,
@@ -41,10 +44,11 @@ export const Sidebar = ({
 
   for (const ch of channels) {
     if (term) {
-      const name = ch.display_name?.toLowerCase() || '';
-      const uName = ch.otherUser?.username?.toLowerCase() || '';
-      const dName = ch.otherUser?.display_name?.toLowerCase() || '';
-      if (!name.includes(term) && !uName.includes(term) && !dName.includes(term)) {
+      const formatted = formatChannelName(ch, usersMap, currentUser?.id);
+      const name = formatted.displayName.toLowerCase();
+      const title = formatted.title.toLowerCase();
+      const secondary = (formatted.secondaryText || '').toLowerCase();
+      if (!name.includes(term) && !title.includes(term) && !secondary.includes(term)) {
         continue;
       }
     }
@@ -126,18 +130,22 @@ export const Sidebar = ({
             Direct Messages
           </div>
           {dms.map((ch) => {
+            const formatted = formatChannelName(ch, usersMap, currentUser?.id);
             const user: User = ch.otherUser || {
               id: ch.id,
-              username: ch.display_name,
-              display_name: ch.display_name,
+              username: formatted.displayName.replace(/^@/, ''),
+              display_name: formatted.displayName.replace(/^@/, ''),
               status: 'offline',
             };
-            const initial = (user.username || 'U').charAt(0).toUpperCase();
+            const initial = formatted.initial;
             const isActive = ch.id === activeChannelId;
             const isMentioned = mentionChannelIds.has(ch.id);
             const isUnread = unreadChannelIds.has(ch.id);
             const statusColor = STATUS_COLORS[user.status || 'offline'] ?? 'bg-zinc-600';
-            const searchIndex = `${ch.display_name} ${user.username} ${user.display_name || ''}`.toLowerCase();
+            const searchIndex = `${formatted.displayName} ${formatted.title} ${formatted.secondaryText || ''}`.toLowerCase();
+            const displayNameText = user.display_name && user.display_name !== user.username
+              ? user.display_name
+              : formatted.displayName;
 
             return (
               <button
@@ -164,7 +172,7 @@ export const Sidebar = ({
                   />
                 </div>
                 <span class="truncate grow">
-                  {user.display_name || user.username}
+                  {displayNameText}
                 </span>
                 <span data-badge-for={ch.id} class="ml-auto flex items-center shrink-0">
                   {isMentioned ? (
@@ -185,10 +193,11 @@ export const Sidebar = ({
             Channels
           </div>
           {regularChannels.map((ch) => {
+            const formatted = formatChannelName(ch, usersMap, currentUser?.id);
             const isActive = ch.id === activeChannelId;
             const isMentioned = mentionChannelIds.has(ch.id);
             const isUnread = unreadChannelIds.has(ch.id);
-            const searchIndex = (ch.display_name || '').toLowerCase();
+            const searchIndex = `${formatted.displayName} ${formatted.title}`.toLowerCase();
 
             return (
               <button
@@ -214,7 +223,7 @@ export const Sidebar = ({
                     <HashIcon class="size-3.5" />
                   )}
                 </span>
-                <span class="truncate grow">{ch.display_name}</span>
+                <span class="truncate grow">{formatted.displayName}</span>
                 <span data-badge-for={ch.id} class="ml-auto flex items-center shrink-0">
                   {isMentioned ? (
                     <span class="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-500 text-white shrink-0 leading-none">
