@@ -1,0 +1,38 @@
+{
+  "name": "sharp-volta",
+  "version": "1.0.0",
+  "description": "Ultra-fast zero-dependency Mattermost desktop client powered by Bun, jsx-dom, and Tailwind CSS v4.",
+  "license": "MIT",
+  "author": "Nicat Bayramov",
+  "keywords": [
+    "mattermost",
+    "chat",
+    "client",
+    "bun",
+    "typescript",
+    "tailwindcss",
+    "zero-dependency"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/BayramovNicat/sharp-volta.git"
+  },
+  "homepage": "https://github.com/BayramovNicat/sharp-volta#readme",
+  "scripts": {
+    "dev": "bun --watch run vite.ts dev",
+    "server": "bun --watch server/index.ts",
+    "build": "bun run vite.ts build",
+    "start": "bun dist/server.js",
+    "preview": "bun run vite.ts preview",
+    "typecheck": "bunx tsc --noEmit",
+    "lint": "bunx biome check .",
+    "format": "bunx biome check --write .",
+    "test": "bun test",
+    "check": "bun run typecheck && bun run lint && bun run test"
+  },
+  "type": "module",
+  "devDependencies": {
+    "@types/bun": "^1.4.2",
+    "jsx-dom": "^8.1.6"
+  }
+}
