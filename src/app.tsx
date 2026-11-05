@@ -289,7 +289,6 @@ const render = () => {
         searchTerm={state.searchTerm}
         isSidebarOpen={state.isSidebarOpen}
         usersMap={usersMap}
-        onToggleSidebar={toggleSidebar}
         onSearchChange={(term) => {
           patchSidebarSearch(term);
         }}

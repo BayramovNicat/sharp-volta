@@ -205,7 +205,7 @@ describe("mattermost client app", () => {
     expect(uploadUiState.isOverlayVisible).toBe(true);
   });
 
-  test("toggles sidebar visibility via header button and collapse button", async () => {
+  test("toggles sidebar visibility via header button, Cmd+B, and Cmd+K (no duplicate button on sidebar)", async () => {
     const toggleState = (await webview.evaluate(`(async () => {
       const headerBtn = document.querySelector('#sidebar-toggle-button');
       const collapseBtn = document.querySelector('#sidebar-collapse-button');
@@ -213,14 +213,14 @@ describe("mattermost client app", () => {
 
       const initialOpen = sidebar && !sidebar.classList.contains('-ml-70');
 
-      // Click collapse button
-      collapseBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      // Click header button to collapse
+      headerBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       await new Promise(r => setTimeout(r, 20));
 
-      const afterCollapseClosed = sidebar?.classList.contains('-ml-70');
+      const afterHeaderClosed = sidebar?.classList.contains('-ml-70');
       const headerBtnCollapsedTitle = headerBtn?.getAttribute('title');
 
-      // Click header toggle button to restore
+      // Click header toggle button again to restore
       headerBtn?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
       await new Promise(r => setTimeout(r, 20));
 
@@ -243,7 +243,7 @@ describe("mattermost client app", () => {
         hasHeaderBtn: !!headerBtn,
         hasCollapseBtn: !!collapseBtn,
         initialOpen: !!initialOpen,
-        afterCollapseClosed: !!afterCollapseClosed,
+        afterHeaderClosed: !!afterHeaderClosed,
         headerBtnCollapsedTitle: headerBtnCollapsedTitle || '',
         afterHeaderOpen: !!afterHeaderOpen,
         afterKeyboardClosed: !!afterKeyboardClosed,
@@ -254,7 +254,7 @@ describe("mattermost client app", () => {
       hasHeaderBtn: boolean;
       hasCollapseBtn: boolean;
       initialOpen: boolean;
-      afterCollapseClosed: boolean;
+      afterHeaderClosed: boolean;
       headerBtnCollapsedTitle: string;
       afterHeaderOpen: boolean;
       afterKeyboardClosed: boolean;
@@ -263,9 +263,9 @@ describe("mattermost client app", () => {
     };
 
     expect(toggleState.hasHeaderBtn).toBe(true);
-    expect(toggleState.hasCollapseBtn).toBe(true);
+    expect(toggleState.hasCollapseBtn).toBe(false);
     expect(toggleState.initialOpen).toBe(true);
-    expect(toggleState.afterCollapseClosed).toBe(true);
+    expect(toggleState.afterHeaderClosed).toBe(true);
     expect(toggleState.headerBtnCollapsedTitle).toContain('Show sidebar');
     expect(toggleState.afterHeaderOpen).toBe(true);
     expect(toggleState.afterKeyboardClosed).toBe(true);

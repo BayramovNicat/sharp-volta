@@ -1,6 +1,6 @@
 import type { Channel, User } from '../types';
 import { formatChannelName } from '../utils/channel-name';
-import { HashIcon, LockIcon, PanelLeftIcon, SearchIcon } from './icons';
+import { HashIcon, LockIcon, SearchIcon } from './icons';
 
 interface SidebarProps {
   channels: Channel[];
@@ -12,7 +12,6 @@ interface SidebarProps {
   searchTerm: string;
   isSidebarOpen?: boolean;
   usersMap?: Map<string, User>;
-  onToggleSidebar?: () => void;
   onSearchChange: (term: string) => void;
   onSelectChannel: (id: string) => void;
 }
@@ -34,7 +33,6 @@ export const Sidebar = ({
   searchTerm,
   isSidebarOpen = true,
   usersMap,
-  onToggleSidebar,
   onSearchChange,
   onSelectChannel,
 }: SidebarProps) => {
@@ -92,18 +90,6 @@ export const Sidebar = ({
               {isConnected ? 'Connected' : 'Reconnecting'}
             </span>
           </div>
-          {onToggleSidebar && (
-            <button
-              id="sidebar-collapse-button"
-              type="button"
-              onClick={onToggleSidebar}
-              class="size-7 rounded-md flex items-center justify-center text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800 transition-colors cursor-pointer"
-              title="Hide sidebar (⌘B)"
-              aria-label="Hide sidebar"
-            >
-              <PanelLeftIcon class="size-4" />
-            </button>
-          )}
         </div>
       </div>
 
