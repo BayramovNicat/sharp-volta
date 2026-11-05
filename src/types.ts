@@ -6,6 +6,7 @@ export interface User {
   first_name?: string;
   last_name?: string;
   status?: 'online' | 'away' | 'dnd' | 'offline';
+  last_picture_update?: number;
 }
 
 export interface FileAttachment {
@@ -49,6 +50,7 @@ export interface Post {
   props?: {
     attachments?: PostAttachment[];
     override_username?: string;
+    override_icon_url?: string;
     from_bot?: string;
     from_plugin?: string;
   };

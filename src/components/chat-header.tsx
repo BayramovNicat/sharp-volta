@@ -1,5 +1,6 @@
 import type { Channel } from '../types';
 import { formatChannelName } from '../utils/channel-name';
+import { UserAvatar } from './avatar';
 import {
   BellIcon,
   BellOffIcon,
@@ -52,17 +53,23 @@ export const ChatHeader = ({
 
         {channel ? (
           <div class="flex items-center gap-3 min-w-0">
-            <div class="size-7 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-400 shrink-0">
-              {details.iconType === 'dm' ? (
-                <span class="text-xs font-bold text-zinc-300">
-                  {details.initial}
-                </span>
-              ) : details.iconType === 'lock' ? (
-                <LockIcon class="size-4 text-zinc-300" />
-              ) : (
-                <HashIcon class="size-4 text-zinc-300" />
-              )}
-            </div>
+            {details.iconType === 'dm' ? (
+              <UserAvatar
+                userId={user?.id}
+                name={details.displayName}
+                sizeClass="size-7"
+                textClass="text-xs"
+                lastPictureUpdate={user?.last_picture_update}
+              />
+            ) : (
+              <div class="size-7 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-400 shrink-0">
+                {details.iconType === 'lock' ? (
+                  <LockIcon class="size-4 text-zinc-300" />
+                ) : (
+                  <HashIcon class="size-4 text-zinc-300" />
+                )}
+              </div>
+            )}
             <div class="min-w-0">
               <h2 class="text-sm font-bold text-zinc-100 flex items-center gap-2 truncate">
                 {details.displayName}

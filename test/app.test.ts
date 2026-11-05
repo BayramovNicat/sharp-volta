@@ -438,4 +438,71 @@ describe("mattermost client app", () => {
     expect(groupingState.pDiffUserHasAvatar).toBe(true);
     expect(groupingState.pHoursLaterHasAvatar).toBe(true);
   });
+
+  test("renders avatar img when custom photo exists and distinct palette initial when none exists", async () => {
+    const avatarState = (await webview.evaluate(`(async () => {
+      if (window.__hmr_state__) {
+        window.__hmr_state__.currentUser = { id: 'user-me', username: 'me', last_picture_update: 1793800000000 };
+        window.__hmr_state__.posts = [
+          {
+            id: 'post-with-photo',
+            user_id: 'user-photo',
+            channel_id: 'test-channel',
+            message: 'Has custom photo',
+            create_at: Date.now(),
+            props: { override_icon_url: '/api/users/user-photo/avatar?_=12345' },
+          },
+          {
+            id: 'post-no-photo',
+            user_id: 'user-no-photo',
+            channel_id: 'test-channel',
+            message: 'No photo uploaded',
+            create_at: Date.now() + 10 * 60 * 1000,
+          },
+        ];
+      }
+      if (window.__render_app__) {
+        window.__render_app__();
+      }
+      await new Promise(r => setTimeout(r, 40));
+
+      const postWithPhoto = document.querySelector('article[data-post-id="post-with-photo"]');
+      const avatarWithPhotoContainer = postWithPhoto?.querySelector('.size-9.rounded-full');
+      const avatarImg = avatarWithPhotoContainer?.querySelector('img');
+      const avatarInitial = avatarWithPhotoContainer?.querySelector('span')?.textContent?.trim();
+
+      const postWithoutPhoto = document.querySelector('article[data-post-id="post-no-photo"]');
+      const avatarWithoutPhotoContainer = postWithoutPhoto?.querySelector('.size-9.rounded-full');
+      const withoutPhotoImg = avatarWithoutPhotoContainer?.querySelector('img');
+      const withoutPhotoInitial = avatarWithoutPhotoContainer?.querySelector('span')?.textContent?.trim();
+
+      const footerAvatar = document.querySelector('footer img');
+
+      return {
+        hasAvatarContainer: !!avatarWithPhotoContainer,
+        avatarImgSrc: avatarImg?.getAttribute('src') || '',
+        avatarInitial: avatarInitial || '',
+        hasFooterAvatar: !!footerAvatar,
+        hasWithoutPhotoContainer: !!avatarWithoutPhotoContainer,
+        withoutPhotoHasImg: !!withoutPhotoImg,
+        withoutPhotoInitial: withoutPhotoInitial || '',
+      };
+    })()`)) as {
+      hasAvatarContainer: boolean;
+      avatarImgSrc: string;
+      avatarInitial: string;
+      hasFooterAvatar: boolean;
+      hasWithoutPhotoContainer: boolean;
+      withoutPhotoHasImg: boolean;
+      withoutPhotoInitial: string;
+    };
+
+    expect(avatarState.hasAvatarContainer).toBe(true);
+    expect(avatarState.avatarImgSrc).toContain('/api/users/user-photo/avatar');
+    expect(avatarState.avatarInitial.length).toBeGreaterThan(0);
+    expect(avatarState.hasFooterAvatar).toBe(true);
+    expect(avatarState.hasWithoutPhotoContainer).toBe(true);
+    expect(avatarState.withoutPhotoHasImg).toBe(false);
+    expect(avatarState.withoutPhotoInitial.length).toBeGreaterThan(0);
+  });
 });

@@ -1,4 +1,5 @@
 import type { FileAttachment, Post, User } from '../types';
+import { UserAvatar } from './avatar';
 import { AlertCircleIcon, ClockIcon, PaperclipIcon } from './icons';
 
 interface MessageItemProps {
@@ -215,9 +216,14 @@ export const MessageItem = ({ post, author, isMe, isGrouped = false, onRetry }: 
 
   return (
     <article data-post-id={post.id} class={containerClasses}>
-      <div class="size-9 rounded-full bg-zinc-800 border border-zinc-700/60 flex items-center justify-center font-bold text-xs text-zinc-300 shrink-0 select-none">
-        {initial}
-      </div>
+      <UserAvatar
+        userId={post.user_id}
+        name={authorName}
+        avatarUrl={post.props?.override_icon_url}
+        sizeClass="size-9"
+        textClass="text-xs"
+        lastPictureUpdate={author?.last_picture_update}
+      />
 
       <div class="grow min-w-0 max-w-full">
         <header class="flex items-baseline gap-2 mb-1 flex-wrap">

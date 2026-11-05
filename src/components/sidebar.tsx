@@ -1,5 +1,6 @@
 import type { Channel, User } from '../types';
 import { formatChannelName } from '../utils/channel-name';
+import { UserAvatar } from './avatar';
 import { HashIcon, LockIcon, SearchIcon } from './icons';
 
 interface SidebarProps {
@@ -150,8 +151,14 @@ export const Sidebar = ({
                         : 'text-zinc-300 hover:bg-zinc-800/60 hover:text-zinc-100'
                 }`}
               >
-                <div class="relative size-6 rounded-full bg-zinc-800 flex items-center justify-center text-[10px] font-semibold text-zinc-200 shrink-0">
-                  {initial}
+                <div class="relative shrink-0">
+                  <UserAvatar
+                    userId={user.id}
+                    name={displayNameText}
+                    sizeClass="size-6"
+                    textClass="text-[10px]"
+                    lastPictureUpdate={user.last_picture_update}
+                  />
                   <span
                     data-user-status={user.id}
                     class={`absolute -bottom-0.5 -right-0.5 size-2 rounded-full border-2 border-zinc-900 ${statusColor}`}
@@ -226,8 +233,14 @@ export const Sidebar = ({
       </div>
 
       <footer class="h-15 px-3.5 border-t border-zinc-800/80 flex items-center gap-3 bg-zinc-950/70">
-        <div class="relative size-8.5 rounded-full bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-sm shadow-indigo-600/30">
-          {myInitial}
+        <div class="relative shrink-0">
+          <UserAvatar
+            userId={currentUser?.id}
+            name={currentUser?.username}
+            sizeClass="size-8.5"
+            textClass="text-xs"
+            lastPictureUpdate={currentUser?.last_picture_update}
+          />
           <span class="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-zinc-950 bg-emerald-500" />
         </div>
         <div class="grow min-w-0">
