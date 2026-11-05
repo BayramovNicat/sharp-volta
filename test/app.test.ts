@@ -348,4 +348,94 @@ describe("mattermost client app", () => {
     expect(extractState.title).toContain('Extract Chat Data for LLMs');
     expect(extractState.closedModal).toBe(true);
   });
+
+  test("renders date dividers and groups consecutive messages from same user within 5 minutes", async () => {
+    const groupingState = (await webview.evaluate(`(async () => {
+      const today = new Date();
+      const baseToday = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 10, 0, 0).getTime();
+      const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1, 15, 0, 0).getTime();
+
+      if (window.__hmr_state__) {
+        window.__hmr_state__.posts = [
+          {
+            id: 'post-yesterday',
+            user_id: 'user-1',
+            channel_id: 'test-channel',
+            message: 'Message from yesterday',
+            create_at: yesterday,
+          },
+          {
+            id: 'post-today-1',
+            user_id: 'user-1',
+            channel_id: 'test-channel',
+            message: 'First message today',
+            create_at: baseToday,
+          },
+          {
+            id: 'post-today-2',
+            user_id: 'user-1',
+            channel_id: 'test-channel',
+            message: 'Second message 2 minutes later (should be grouped)',
+            create_at: baseToday + 2 * 60 * 1000,
+          },
+          {
+            id: 'post-today-diff-user',
+            user_id: 'user-2',
+            channel_id: 'test-channel',
+            message: 'Different user 1 min later (should NOT be grouped)',
+            create_at: baseToday + 3 * 60 * 1000,
+          },
+          {
+            id: 'post-today-hours-later',
+            user_id: 'user-2',
+            channel_id: 'test-channel',
+            message: 'Same user 5 hours later (should NOT be grouped)',
+            create_at: baseToday + 5 * 60 * 60 * 1000,
+          },
+        ];
+      }
+
+      if (window.__render_app__) {
+        window.__render_app__();
+      }
+
+      await new Promise(r => setTimeout(r, 60));
+
+      const dividers = document.querySelectorAll('[data-date-divider]');
+      const pYesterday = document.querySelector('article[data-post-id="post-yesterday"]');
+      const pToday1 = document.querySelector('article[data-post-id="post-today-1"]');
+      const pToday2 = document.querySelector('article[data-post-id="post-today-2"]');
+      const pDiffUser = document.querySelector('article[data-post-id="post-today-diff-user"]');
+      const pHoursLater = document.querySelector('article[data-post-id="post-today-hours-later"]');
+
+      return {
+        dividerCount: dividers.length,
+        hasYesterdayDivider: Array.from(dividers).some(d => d.textContent?.includes('Yesterday')),
+        hasTodayDivider: Array.from(dividers).some(d => d.textContent?.includes('Today')),
+        pToday1HasAvatar: !!pToday1?.querySelector('.size-9.rounded-full'),
+        pToday1HasHeader: !!pToday1?.querySelector('header'),
+        pToday2IsGrouped: !pToday2?.querySelector('.size-9.rounded-full') && !pToday2?.querySelector('header') && !!pToday2?.querySelector('.w-9'),
+        pDiffUserHasAvatar: !!pDiffUser?.querySelector('.size-9.rounded-full'),
+        pHoursLaterHasAvatar: !!pHoursLater?.querySelector('.size-9.rounded-full'),
+      };
+    })()`)) as {
+      dividerCount: number;
+      hasYesterdayDivider: boolean;
+      hasTodayDivider: boolean;
+      pToday1HasAvatar: boolean;
+      pToday1HasHeader: boolean;
+      pToday2IsGrouped: boolean;
+      pDiffUserHasAvatar: boolean;
+      pHoursLaterHasAvatar: boolean;
+    };
+
+    expect(groupingState.dividerCount).toBe(2);
+    expect(groupingState.hasYesterdayDivider).toBe(true);
+    expect(groupingState.hasTodayDivider).toBe(true);
+    expect(groupingState.pToday1HasAvatar).toBe(true);
+    expect(groupingState.pToday1HasHeader).toBe(true);
+    expect(groupingState.pToday2IsGrouped).toBe(true);
+    expect(groupingState.pDiffUserHasAvatar).toBe(true);
+    expect(groupingState.pHoursLaterHasAvatar).toBe(true);
+  });
 });

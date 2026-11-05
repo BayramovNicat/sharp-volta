@@ -54,6 +54,7 @@ export interface Post {
   };
   status?: 'sending' | 'sent' | 'failed';
   tempId?: string;
+  type?: string;
 }
 
 export interface Channel {

@@ -5,6 +5,7 @@ interface MessageItemProps {
   post: Post;
   author: User | undefined;
   isMe: boolean;
+  isGrouped?: boolean;
   onRetry?: (post: Post) => void;
 }
 
@@ -81,7 +82,49 @@ const extractMessageText = (post: Post): string => {
   return '';
 };
 
-export const MessageItem = ({ post, author, isMe, onRetry }: MessageItemProps) => {
+const renderAttachments = (files: FileAttachment[]) => {
+  return (
+    <div class="mt-2.5 flex flex-wrap gap-2 max-w-full">
+      {files.map((file) => {
+        const fileUrl = file.preview_url || `/api/files/${file.id}`;
+        const previewUrl = file.preview_url || `/api/files/${file.id}/preview`;
+
+        if (file.mime_type?.startsWith('image/')) {
+          return (
+            <a
+              key={file.id}
+              href={fileUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="max-w-xs max-h-56 rounded-lg overflow-hidden border border-zinc-800 bg-black cursor-pointer hover:border-indigo-500/50 transition-colors block"
+            >
+              <img
+                src={previewUrl}
+                alt={file.name}
+                loading="lazy"
+                class="size-full object-cover max-h-56"
+              />
+            </a>
+          );
+        }
+        return (
+          <a
+            key={file.id}
+            href={fileUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="flex items-center gap-2 px-3 py-2 bg-zinc-950/80 border border-zinc-800 rounded-lg text-xs hover:border-zinc-700 transition-colors"
+          >
+            <PaperclipIcon class="size-4 text-zinc-400 shrink-0" />
+            <span class="text-zinc-200 truncate max-w-xs font-mono">{file.name}</span>
+          </a>
+        );
+      })}
+    </div>
+  );
+};
+
+export const MessageItem = ({ post, author, isMe, isGrouped = false, onRetry }: MessageItemProps) => {
   const authorName =
     post.props?.override_username ||
     author?.display_name ||
@@ -89,6 +132,7 @@ export const MessageItem = ({ post, author, isMe, onRetry }: MessageItemProps) =
     'user';
   const initial = authorName.charAt(0).toUpperCase();
   const dateStr = formatTimestamp(post.create_at);
+  const gutterTime = timeFormatter.format(new Date(post.create_at));
   const files: FileAttachment[] =
     post.metadata?.files && post.metadata.files.length > 0
       ? post.metadata.files
@@ -103,8 +147,66 @@ export const MessageItem = ({ post, author, isMe, onRetry }: MessageItemProps) =
   const isFailed = post.status === 'failed';
   const messageText = extractMessageText(post);
 
+  if (isGrouped) {
+    const containerClasses = [
+      'flex gap-3 items-start min-w-0 max-w-full px-2 py-0.5 -mx-2 rounded-lg transition-all group mt-0.5',
+      isSending ? 'opacity-70' : 'hover:bg-zinc-800/30',
+      isFailed ? 'border-l-2 border-rose-500 pl-2 bg-rose-500/5' : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    return (
+      <article data-post-id={post.id} class={containerClasses}>
+        <div class="w-9 shrink-0 flex items-center justify-end pr-1 select-none pt-0.5 min-h-4">
+          {isSending ? (
+            <ClockIcon class="size-3.5 animate-pulse text-indigo-400" />
+          ) : isFailed ? (
+            <AlertCircleIcon class="size-3.5 text-rose-400" />
+          ) : (
+            <span
+              class="opacity-0 group-hover:opacity-100 text-[10px] text-zinc-500 font-mono transition-opacity select-none leading-none tabular-nums"
+              title={dateStr}
+            >
+              {gutterTime}
+            </span>
+          )}
+        </div>
+
+        <div class="grow min-w-0 max-w-full">
+          {isSending && (
+            <div class="inline-flex items-center gap-1 text-[10px] text-indigo-400 font-mono mb-0.5">
+              <span>Sending...</span>
+            </div>
+          )}
+          {isFailed && (
+            <div class="inline-flex items-center gap-1 text-[10px] text-rose-400 font-medium mb-0.5">
+              <AlertCircleIcon class="size-3" />
+              <span>Failed to send</span>
+              <button
+                type="button"
+                onClick={() => onRetry?.(post)}
+                class="text-indigo-400 hover:text-indigo-300 underline font-semibold ml-1 cursor-pointer"
+              >
+                Retry
+              </button>
+            </div>
+          )}
+
+          {messageText && (
+            <div class="text-xs text-zinc-200 leading-relaxed wrap-break-word">
+              {renderFormattedText(messageText)}
+            </div>
+          )}
+
+          {files.length > 0 && renderAttachments(files)}
+        </div>
+      </article>
+    );
+  }
+
   const containerClasses = [
-    'flex gap-3 items-start min-w-0 max-w-full px-2 py-1.5 -mx-2 rounded-lg transition-all group',
+    'flex gap-3 items-start min-w-0 max-w-full px-2 py-1 -mx-2 rounded-lg transition-all group mt-3.5 first:mt-0',
     isSending ? 'opacity-70' : 'hover:bg-zinc-800/30',
     isFailed ? 'border-l-2 border-rose-500 pl-2 bg-rose-500/5' : '',
   ]
@@ -113,7 +215,7 @@ export const MessageItem = ({ post, author, isMe, onRetry }: MessageItemProps) =
 
   return (
     <article data-post-id={post.id} class={containerClasses}>
-      <div class="size-9 rounded-full bg-zinc-800 border border-zinc-700/60 flex items-center justify-center font-bold text-xs text-zinc-300 shrink-0">
+      <div class="size-9 rounded-full bg-zinc-800 border border-zinc-700/60 flex items-center justify-center font-bold text-xs text-zinc-300 shrink-0 select-none">
         {initial}
       </div>
 
@@ -150,45 +252,7 @@ export const MessageItem = ({ post, author, isMe, onRetry }: MessageItemProps) =
           </div>
         )}
 
-        {files.length > 0 && (
-          <div class="mt-2.5 flex flex-wrap gap-2 max-w-full">
-            {files.map((file) => {
-              const fileUrl = file.preview_url || `/api/files/${file.id}`;
-              const previewUrl = file.preview_url || `/api/files/${file.id}/preview`;
-
-              if (file.mime_type?.startsWith('image/')) {
-                return (
-                  <a
-                    key={file.id}
-                    href={fileUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="max-w-xs max-h-56 rounded-lg overflow-hidden border border-zinc-800 bg-black cursor-pointer hover:border-indigo-500/50 transition-colors block"
-                  >
-                    <img
-                      src={previewUrl}
-                      alt={file.name}
-                      loading="lazy"
-                      class="size-full object-cover max-h-56"
-                    />
-                  </a>
-                );
-              }
-              return (
-                <a
-                  key={file.id}
-                  href={fileUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="flex items-center gap-2 px-3 py-2 bg-zinc-950/80 border border-zinc-800 rounded-lg text-xs hover:border-zinc-700 transition-colors"
-                >
-                  <PaperclipIcon class="size-4 text-zinc-400 shrink-0" />
-                  <span class="text-zinc-200 truncate max-w-xs font-mono">{file.name}</span>
-                </a>
-              );
-            })}
-          </div>
-        )}
+        {files.length > 0 && renderAttachments(files)}
       </div>
     </article>
   );

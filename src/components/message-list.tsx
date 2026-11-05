@@ -1,4 +1,10 @@
 import type { Post, User } from '../types';
+import {
+  formatDateDivider,
+  getDateKey,
+  isSameDay,
+  shouldGroupPosts,
+} from '../utils/message-grouping';
 import { MessageSquareIcon, SpinnerIcon } from './icons';
 import { MessageItem } from './message-item';
 
@@ -24,6 +30,24 @@ interface MessageListProps {
   handleRef?: (handle: MessageListHandle | null) => void;
   onRetry?: (post: Post) => void;
 }
+
+export const DateDivider = ({ timestamp }: { timestamp: number }) => {
+  const dateKey = getDateKey(timestamp);
+  const label = formatDateDivider(timestamp);
+  return (
+    <div
+      data-date-divider={dateKey}
+      class="relative flex items-center justify-center my-4 py-1 select-none"
+    >
+      <div class="absolute inset-0 flex items-center" aria-hidden="true">
+        <div class="w-full border-t border-zinc-800/80" />
+      </div>
+      <div class="relative px-3.5 py-0.5 bg-zinc-900 border border-zinc-800 rounded-full text-[11px] font-medium text-zinc-400 shadow-xs tracking-wide">
+        {label}
+      </div>
+    </div>
+  );
+};
 
 export const MessageList = ({
   posts: initialPosts,
@@ -52,15 +76,21 @@ export const MessageList = ({
   let itemsContainerEl: HTMLElement | null = null;
   let loadingSpinnerEl: HTMLElement | null = null;
 
-  const createItem = (post: Post) => (
+  const createItem = (post: Post, isGrouped: boolean = false) => (
     <MessageItem
       key={post.id}
       post={post}
       author={usersMap.get(post.user_id)}
       isMe={post.user_id === currentUserId}
+      isGrouped={isGrouped}
       onRetry={onRetry}
     />
   );
+
+  const isPostGroupedAtIndex = (index: number): boolean => {
+    if (index <= 0) return false;
+    return shouldGroupPosts(posts[index - 1], posts[index]);
+  };
 
   const scrollToBottom = () => {
     requestAnimationFrame(() => {
@@ -77,9 +107,16 @@ export const MessageList = ({
         containerEl &&
         containerEl.scrollTop + containerEl.clientHeight >= containerEl.scrollHeight - 100;
 
+      const lastPost = posts[posts.length - 1];
+      const needsDivider = !lastPost || !isSameDay(lastPost.create_at, post.create_at);
+      const isGrouped = shouldGroupPosts(lastPost, post);
+
       posts.push(post);
       if (itemsContainerEl) {
-        itemsContainerEl.appendChild(createItem(post));
+        if (needsDivider) {
+          itemsContainerEl.appendChild(<DateDivider timestamp={post.create_at} />);
+        }
+        itemsContainerEl.appendChild(createItem(post, isGrouped));
       }
 
       if (isNearBottom) {
@@ -94,7 +131,8 @@ export const MessageList = ({
         if (itemsContainerEl) {
           const existingEl = itemsContainerEl.querySelector(`article[data-post-id="${updatedPost.id}"]`);
           if (existingEl) {
-            existingEl.replaceWith(createItem(updatedPost));
+            const isGrouped = isPostGroupedAtIndex(idx);
+            existingEl.replaceWith(createItem(updatedPost, isGrouped));
           }
         }
       } else {
@@ -113,7 +151,9 @@ export const MessageList = ({
       if (itemsContainerEl) {
         const existingEl = itemsContainerEl.querySelector(`article[data-post-id="${tempId}"]`);
         if (existingEl) {
-          existingEl.replaceWith(createItem(serverPost));
+          const targetIdx = posts.findIndex((p) => p.id === serverPost.id);
+          const isGrouped = isPostGroupedAtIndex(targetIdx);
+          existingEl.replaceWith(createItem(serverPost, isGrouped));
         }
       }
     },
@@ -126,19 +166,59 @@ export const MessageList = ({
         if (itemsContainerEl) {
           const existingEl = itemsContainerEl.querySelector(`article[data-post-id="${tempId}"]`);
           if (existingEl) {
-            existingEl.replaceWith(createItem(failedPost));
+            const isGrouped = isPostGroupedAtIndex(idx);
+            existingEl.replaceWith(createItem(failedPost, isGrouped));
           }
         }
       }
     },
 
     prependPosts: (olderPosts: Post[], prevScrollHeight: number, prevScrollTop: number) => {
+      if (olderPosts.length === 0) return;
+
+      const previouslyFirstPost = posts[0];
+      const fragment = document.createDocumentFragment();
+      let prev: Post | undefined = undefined;
+      let lastDateKey = '';
+
+      for (let i = 0; i < olderPosts.length; i++) {
+        const post = olderPosts[i];
+        const dateKey = getDateKey(post.create_at);
+        if (dateKey !== lastDateKey) {
+          fragment.appendChild(<DateDivider timestamp={post.create_at} />);
+          lastDateKey = dateKey;
+          prev = undefined;
+        }
+        const isGrouped = shouldGroupPosts(prev, post);
+        fragment.appendChild(createItem(post, isGrouped));
+        prev = post;
+      }
+
+      // Check boundary between olderPosts and previouslyFirstPost
+      if (previouslyFirstPost && itemsContainerEl) {
+        const lastOlderPost = olderPosts[olderPosts.length - 1];
+        const prevFirstDateKey = getDateKey(previouslyFirstPost.create_at);
+
+        if (prevFirstDateKey === lastDateKey) {
+          const redundantDivider = itemsContainerEl.querySelector(
+            `[data-date-divider="${prevFirstDateKey}"]`
+          );
+          if (redundantDivider) {
+            redundantDivider.remove();
+          }
+          if (shouldGroupPosts(lastOlderPost, previouslyFirstPost)) {
+            const existingFirstArticle = itemsContainerEl.querySelector(
+              `article[data-post-id="${previouslyFirstPost.id}"]`
+            );
+            if (existingFirstArticle) {
+              existingFirstArticle.replaceWith(createItem(previouslyFirstPost, true));
+            }
+          }
+        }
+      }
+
       posts.unshift(...olderPosts);
       if (itemsContainerEl) {
-        const fragment = document.createDocumentFragment();
-        for (const post of olderPosts) {
-          fragment.appendChild(createItem(post));
-        }
         itemsContainerEl.prepend(fragment);
       }
 
@@ -169,7 +249,7 @@ export const MessageList = ({
         scrollRef?.(el);
       }}
       onScroll={onScroll}
-      class="flex-1 overflow-y-auto overflow-x-hidden p-6 space-y-4"
+      class="flex-1 overflow-y-auto overflow-x-hidden p-6"
     >
       <div
         ref={(el) => {
@@ -195,9 +275,27 @@ export const MessageList = ({
         ref={(el) => {
           itemsContainerEl = el;
         }}
-        class="space-y-4"
+        class="flex flex-col min-w-0"
       >
-        {posts.map((post) => createItem(post))}
+        {(() => {
+          const elements: HTMLElement[] = [];
+          let prev: Post | undefined = undefined;
+          let lastDateKey = '';
+
+          for (let i = 0; i < posts.length; i++) {
+            const post = posts[i];
+            const dateKey = getDateKey(post.create_at);
+            if (dateKey !== lastDateKey) {
+              elements.push(<DateDivider timestamp={post.create_at} /> as HTMLElement);
+              lastDateKey = dateKey;
+              prev = undefined;
+            }
+            const isGrouped = shouldGroupPosts(prev, post);
+            elements.push(createItem(post, isGrouped) as HTMLElement);
+            prev = post;
+          }
+          return elements;
+        })()}
       </div>
     </div>
   );
