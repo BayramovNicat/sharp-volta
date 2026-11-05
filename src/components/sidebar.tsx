@@ -151,19 +151,15 @@ export const Sidebar = ({
                         : 'text-zinc-300 hover:bg-zinc-800/60 hover:text-zinc-100'
                 }`}
               >
-                <div class="relative shrink-0">
-                  <UserAvatar
-                    userId={user.id}
-                    name={displayNameText}
-                    sizeClass="size-6"
-                    textClass="text-[10px]"
-                    lastPictureUpdate={user.last_picture_update}
-                  />
-                  <span
-                    data-user-status={user.id}
-                    class={`absolute -bottom-0.5 -right-0.5 size-2 rounded-full border-2 border-zinc-900 ${statusColor}`}
-                  />
-                </div>
+                <UserAvatar
+                  userId={user.id}
+                  name={displayNameText}
+                  sizeClass="size-6"
+                  textClass="text-[10px]"
+                  lastPictureUpdate={user.last_picture_update}
+                  status={user.status || 'offline'}
+                  showStatus={true}
+                />
                 <span class="truncate grow">
                   {displayNameText}
                 </span>
@@ -233,16 +229,15 @@ export const Sidebar = ({
       </div>
 
       <footer class="h-15 px-3.5 border-t border-zinc-800/80 flex items-center gap-3 bg-zinc-950/70">
-        <div class="relative shrink-0">
-          <UserAvatar
-            userId={currentUser?.id}
-            name={currentUser?.username}
-            sizeClass="size-8.5"
-            textClass="text-xs"
-            lastPictureUpdate={currentUser?.last_picture_update}
-          />
-          <span class="absolute -bottom-0.5 -right-0.5 size-2.5 rounded-full border-2 border-zinc-950 bg-emerald-500" />
-        </div>
+        <UserAvatar
+          userId={currentUser?.id}
+          name={currentUser?.username}
+          sizeClass="size-8.5"
+          textClass="text-xs"
+          lastPictureUpdate={currentUser?.last_picture_update}
+          status={isConnected ? (currentUser?.status || 'online') : 'offline'}
+          showStatus={true}
+        />
         <div class="grow min-w-0">
           <div class="text-xs font-semibold text-zinc-100 truncate leading-tight">
             @{currentUser?.username || 'user'}

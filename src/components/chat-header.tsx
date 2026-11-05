@@ -60,6 +60,8 @@ export const ChatHeader = ({
                 sizeClass="size-7"
                 textClass="text-xs"
                 lastPictureUpdate={user?.last_picture_update}
+                status={user?.status || 'offline'}
+                showStatus={true}
               />
             ) : (
               <div class="size-7 rounded-lg bg-zinc-800 flex items-center justify-center text-zinc-400 shrink-0">

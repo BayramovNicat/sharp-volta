@@ -223,6 +223,8 @@ export const MessageItem = ({ post, author, isMe, isGrouped = false, onRetry }: 
         sizeClass="size-9"
         textClass="text-xs"
         lastPictureUpdate={author?.last_picture_update}
+        status={author?.status || (isMe ? 'online' : 'offline')}
+        showStatus={true}
       />
 
       <div class="grow min-w-0 max-w-full">

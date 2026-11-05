@@ -470,39 +470,51 @@ describe("mattermost client app", () => {
       const avatarWithPhotoContainer = postWithPhoto?.querySelector('.size-9.rounded-full');
       const avatarImg = avatarWithPhotoContainer?.querySelector('img');
       const avatarInitial = avatarWithPhotoContainer?.querySelector('span')?.textContent?.trim();
+      const postWithPhotoStatus = avatarWithPhotoContainer?.querySelector('[data-user-status]');
 
       const postWithoutPhoto = document.querySelector('article[data-post-id="post-no-photo"]');
       const avatarWithoutPhotoContainer = postWithoutPhoto?.querySelector('.size-9.rounded-full');
       const withoutPhotoImg = avatarWithoutPhotoContainer?.querySelector('img');
       const withoutPhotoInitial = avatarWithoutPhotoContainer?.querySelector('span')?.textContent?.trim();
+      const postWithoutPhotoStatus = avatarWithoutPhotoContainer?.querySelector('[data-user-status]');
 
       const footerAvatar = document.querySelector('footer img');
+      const footerStatusDot = document.querySelector('footer [data-user-status]');
 
       return {
         hasAvatarContainer: !!avatarWithPhotoContainer,
         avatarImgSrc: avatarImg?.getAttribute('src') || '',
         avatarInitial: avatarInitial || '',
         hasFooterAvatar: !!footerAvatar,
+        hasFooterStatusDot: !!footerStatusDot,
         hasWithoutPhotoContainer: !!avatarWithoutPhotoContainer,
         withoutPhotoHasImg: !!withoutPhotoImg,
         withoutPhotoInitial: withoutPhotoInitial || '',
+        postWithPhotoHasStatus: !!postWithPhotoStatus,
+        postWithoutPhotoHasStatus: !!postWithoutPhotoStatus,
       };
     })()`)) as {
       hasAvatarContainer: boolean;
       avatarImgSrc: string;
       avatarInitial: string;
       hasFooterAvatar: boolean;
+      hasFooterStatusDot: boolean;
       hasWithoutPhotoContainer: boolean;
       withoutPhotoHasImg: boolean;
       withoutPhotoInitial: string;
+      postWithPhotoHasStatus: boolean;
+      postWithoutPhotoHasStatus: boolean;
     };
 
     expect(avatarState.hasAvatarContainer).toBe(true);
     expect(avatarState.avatarImgSrc).toContain('/api/users/user-photo/avatar');
     expect(avatarState.avatarInitial.length).toBeGreaterThan(0);
     expect(avatarState.hasFooterAvatar).toBe(true);
+    expect(avatarState.hasFooterStatusDot).toBe(true);
     expect(avatarState.hasWithoutPhotoContainer).toBe(true);
     expect(avatarState.withoutPhotoHasImg).toBe(false);
     expect(avatarState.withoutPhotoInitial.length).toBeGreaterThan(0);
+    expect(avatarState.postWithPhotoHasStatus).toBe(true);
+    expect(avatarState.postWithoutPhotoHasStatus).toBe(true);
   });
 });

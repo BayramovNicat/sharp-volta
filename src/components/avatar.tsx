@@ -1,4 +1,4 @@
-interface UserAvatarProps {
+export interface UserAvatarProps {
   userId?: string;
   name?: string;
   avatarUrl?: string;
@@ -6,6 +6,8 @@ interface UserAvatarProps {
   textClass?: string;
   class?: string;
   lastPictureUpdate?: number;
+  status?: string;
+  showStatus?: boolean;
 }
 
 const AVATAR_PALETTES = [
@@ -19,6 +21,13 @@ const AVATAR_PALETTES = [
   { bg: 'bg-cyan-600', text: 'text-cyan-100', border: 'border-cyan-500/30' },
 ];
 
+export const STATUS_COLORS: Record<string, string> = {
+  online: 'bg-emerald-500',
+  away: 'bg-amber-500',
+  dnd: 'bg-rose-500',
+  offline: 'bg-zinc-600',
+};
+
 export const getAvatarPalette = (
   identifier: string = ''
 ): { bg: string; text: string; border: string } => {
@@ -30,6 +39,14 @@ export const getAvatarPalette = (
   return AVATAR_PALETTES[Math.abs(hash) % AVATAR_PALETTES.length];
 };
 
+const getDotSizeClass = (sizeClass: string): string => {
+  if (sizeClass.includes('size-9')) return 'size-3';
+  if (sizeClass.includes('size-8')) return 'size-2.5';
+  if (sizeClass.includes('size-7')) return 'size-2.5';
+  if (sizeClass.includes('size-6')) return 'size-2';
+  return 'size-2.5';
+};
+
 export const UserAvatar = ({
   userId,
   name,
@@ -38,6 +55,8 @@ export const UserAvatar = ({
   textClass = 'text-xs',
   class: extraClass = '',
   lastPictureUpdate,
+  status,
+  showStatus = false,
 }: UserAvatarProps) => {
   const initial = (name || 'U').charAt(0).toUpperCase();
   const palette = getAvatarPalette(userId || name || 'default');
@@ -51,20 +70,37 @@ export const UserAvatar = ({
     ? customAvatarUrl || `/api/users/${userId}/avatar?_=${lastPictureUpdate}`
     : null;
 
+  const shouldRenderStatus = showStatus || status !== undefined;
+  const statusColor = STATUS_COLORS[status || 'offline'] ?? 'bg-zinc-600';
+  const dotSize = getDotSizeClass(sizeClass);
+
   return (
     <div
-      class={`relative ${sizeClass} rounded-full overflow-hidden ${palette.bg} ${palette.border} border flex items-center justify-center font-bold ${textClass} ${palette.text} shrink-0 select-none shadow-xs ${extraClass}`}
+      class={`relative ${sizeClass} rounded-full shrink-0 select-none ${extraClass}`}
     >
-      <span class="select-none uppercase leading-none">{initial}</span>
-      {avatarUrl && (
-        <img
-          src={avatarUrl}
-          alt={name || 'Avatar'}
-          loading="lazy"
-          class="absolute inset-0 size-full object-cover"
-          onError={(e) => {
-            (e.currentTarget as HTMLElement).style.display = 'none';
-          }}
+      <div
+        class={`size-full rounded-full overflow-hidden ${palette.bg} ${palette.border} border flex items-center justify-center font-bold ${textClass} ${palette.text} shadow-xs`}
+      >
+        <span class="select-none uppercase leading-none">{initial}</span>
+        {avatarUrl && (
+          <img
+            src={avatarUrl}
+            alt={name || 'Avatar'}
+            loading="lazy"
+            class="absolute inset-0 size-full object-cover"
+            onError={(e) => {
+              (e.currentTarget as HTMLElement).style.display = 'none';
+            }}
+          />
+        )}
+      </div>
+
+      {shouldRenderStatus && (
+        <span
+          data-user-status={userId}
+          class={`absolute -bottom-0.5 -right-0.5 ${dotSize} rounded-full border-2 border-zinc-950 ${statusColor} transition-colors pointer-events-none`}
+          title={status || 'offline'}
+          aria-label={status || 'offline'}
         />
       )}
     </div>

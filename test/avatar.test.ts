@@ -36,4 +36,12 @@ describe('UserAvatar Component & Palette Logic', () => {
 
     expect(chosenUrl).toBe('https://custom-bot-domain.com/bot-avatar.png');
   });
+
+  test('maps online, away, dnd, and offline to distinct tailwind status colors', () => {
+    const { STATUS_COLORS } = require('../src/components/avatar');
+    expect(STATUS_COLORS.online).toBe('bg-emerald-500');
+    expect(STATUS_COLORS.away).toBe('bg-amber-500');
+    expect(STATUS_COLORS.dnd).toBe('bg-rose-500');
+    expect(STATUS_COLORS.offline).toBe('bg-zinc-600');
+  });
 });

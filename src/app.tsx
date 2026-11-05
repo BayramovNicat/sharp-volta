@@ -134,8 +134,7 @@ const patchChannelBadge = (channelId: string) => {
 };
 
 const patchUserStatus = (userId: string, status: string) => {
-  const dot = document.querySelector(`[data-user-status="${userId}"]`);
-  if (!dot) return;
+  const dots = document.querySelectorAll(`[data-user-status="${userId}"]`);
   const STATUS_COLORS: Record<string, string> = {
     online: 'bg-emerald-500',
     away: 'bg-amber-500',
@@ -143,7 +142,11 @@ const patchUserStatus = (userId: string, status: string) => {
     offline: 'bg-zinc-600',
   };
   const color = STATUS_COLORS[status] ?? 'bg-zinc-600';
-  dot.className = `absolute -bottom-0.5 -right-0.5 size-2 rounded-full border-2 border-zinc-900 ${color}`;
+  for (let i = 0; i < dots.length; i++) {
+    const dot = dots[i] as HTMLElement;
+    dot.className = dot.className.replace(/bg-(emerald|amber|rose|zinc)-[0-9]+/g, color);
+    dot.setAttribute('title', status);
+  }
 };
 
 const patchNotificationToggle = (isActive: boolean) => {
@@ -406,7 +409,12 @@ const selectChannel = async (channelId: string) => {
 
     if (data.users) {
       for (const uid in data.users) {
-        usersMap.set(uid, data.users[uid]);
+        const existing = usersMap.get(uid);
+        const merged = { ...existing, ...data.users[uid] };
+        usersMap.set(uid, merged);
+        if (merged.status) {
+          patchUserStatus(uid, merged.status);
+        }
       }
     }
 
@@ -457,7 +465,12 @@ const loadOlderMessages = async () => {
 
     if (data.users) {
       for (const uid in data.users) {
-        usersMap.set(uid, data.users[uid]);
+        const existing = usersMap.get(uid);
+        const merged = { ...existing, ...data.users[uid] };
+        usersMap.set(uid, merged);
+        if (merged.status) {
+          patchUserStatus(uid, merged.status);
+        }
       }
     }
 
